@@ -13,7 +13,7 @@ const m = require('debug')('bot:index:msg')
 
 const bot = new Telegraf(config.api_token)
 
-//bot.use(Telegraf.log())
+bot.use(Telegraf.log())
 
 bot.catch((err) => {
   console.log('Ooops', err)
@@ -362,7 +362,9 @@ bot.on('message', async (ctx) =>  {
     aux = part.split(' ')
 
     if (aux.length < 3)
-      return
+      break
+
+    l('Saving parts')
 
     var zipped = _.zip(_.drop(aux, 0), _.drop(aux, 1), _.drop(aux, 2))
     
@@ -382,15 +384,17 @@ bot.on('message', async (ctx) =>  {
       .map((el) => ctx.message.text.substr(el.offset, el.length))
 
     if (mentions.includes('@' + bot.options.username)) {
+      l('mentioned')
       await utils.resetCount(ctx)
 
       var res = await data.get_sentence(ctx.message.chat.id)
-      l(`automessage: ${res}`)
+      l(`mentioned: ${res}`)
       await ctx.reply(res, {reply_to_message_id: ctx.message.message_id})
     }
   }
 
   if (ctx.message.reply_to_message && ctx.message.reply_to_message.from.id === bot.options.id) {
+    l('replied to')
     await utils.resetCount(ctx)
 
     var res = await data.get_sentence(ctx.message.chat.id)
@@ -399,6 +403,7 @@ bot.on('message', async (ctx) =>  {
   }
 
   if (await data.get_pref(ctx.message.chat.id, 'count') >= (await data.get_pref(ctx.message.chat.id, 'automessage') || +Infinity)) {
+    l('automessage due')
     await utils.resetCount(ctx)
 
     var res = await data.get_sentence(ctx.message.chat.id)
