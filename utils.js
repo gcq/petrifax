@@ -4,6 +4,7 @@ const _ = require('lodash')
 const Extra = require('telegraf/extra')
 
 const data = require('./data.db')
+const ownerId = require('./config').ownerId
 
 const re = RegExp('.*[.?!]$')
 
@@ -13,7 +14,7 @@ module.exports = {
   },
 
   isOwner: function isOwner(ctx) {
-    return [data.ownerId].includes(ctx.message.from.id)
+    return [ownerId].includes(ctx.message.from.id)
   },
 
   isAdmin: async function isAdmin(ctx) {

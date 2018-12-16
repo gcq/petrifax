@@ -85,7 +85,6 @@ async function close() {
 }
 
 module.exports = {
-  ownerId: 9991761,
   open,
   close,
   getDb: () => db,
