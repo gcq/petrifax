@@ -1,0 +1,5 @@
+config.js
+test.db.js
+node_modules/
+.vscode/
+*.sqlite3*
