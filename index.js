@@ -256,6 +256,10 @@ bot.hears(/@all/g, async (ctx) => {
 bot.on('message', async (ctx) =>  {
   l('message')
 
+  let isAuthorized = await utils.isChatAuthorised(ctx)
+
+  l(`chat is${isAuthorized ? '' : ' NOT '}authorized`)
+
   if (!await data.exists_group(ctx.message.chat.id))
     await data.create_group(ctx.message.chat.id, ctx.message.chat.title || ctx.message.chat.username)
 
@@ -312,8 +316,7 @@ bot.on('message', async (ctx) =>  {
 
     await data.remove_user_from_group(user.id, ctx.message.chat.id)
 
-    let authed = await utils.isChatAuthorised(ctx)
-    if (authed)
+    if (isAuthorized)
       await ctx.reply(`You'll be missed, ${user.first_name}`)
 
     return
@@ -325,8 +328,6 @@ bot.on('message', async (ctx) =>  {
     let users = ctx.message.new_chat_members
 
     l('users joined', users)
-
-    let authed = await utils.isChatAuthorised(ctx)
 
     for (user of users) {
       if (user.id === bot.options.id) {
@@ -341,14 +342,14 @@ bot.on('message', async (ctx) =>  {
       await data.add_user_to_group(user.id, chat.id)
     }
 
-    if (users.length === 1 && users[0].id !== bot.options.id && authed)
+    if (users.length === 1 && users[0].id !== bot.options.id && isAuthorized)
       await ctx.reply(`Hola ${users[0].first_name}!`)
 
     return
   }
 
   // ######################## AUTHORIZED CHATS ###########################
-  if (!await utils.isChatAuthorised(ctx)) return
+  if (!isAuthorized) return
 
   await utils.incrementCount(ctx)
 
