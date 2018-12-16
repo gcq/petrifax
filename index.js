@@ -373,8 +373,10 @@ bot.on('message', async (ctx) =>  {
       .dropRight(2)
       .value()
 
+    await data.getDb().run('BEGIN TRANSACTION')
     for (let i = 0; i < zipped.length; i++)
       await data.add_message(ctx.message.chat.id, zipped[i], ctx.message.from.id, i === 0, i === zipped.length - 1)
+    await data.getDb().run('COMMIT TRANSACTION')
   }
 
   //if (ctx.message.chat.type === 'private') ctx.reply('OK')
