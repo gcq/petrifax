@@ -373,10 +373,10 @@ bot.on('message', async (ctx) =>  {
       .dropRight(2)
       .value()
 
-    await data.getDb().run('BEGIN TRANSACTION')
+    //await data.getDb().run('BEGIN TRANSACTION')
     for (let i = 0; i < zipped.length; i++)
       await data.add_message(ctx.message.chat.id, zipped[i], ctx.message.from.id, i === 0, i === zipped.length - 1)
-    await data.getDb().run('COMMIT TRANSACTION')
+    //await data.getDb().run('COMMIT TRANSACTION')
   }
 
   //if (ctx.message.chat.type === 'private') ctx.reply('OK')
@@ -393,6 +393,31 @@ bot.on('message', async (ctx) =>  {
       var res = await data.get_sentence(ctx.message.chat.id)
       l(`mentioned: ${res}`)
       await ctx.reply(res, {reply_to_message_id: ctx.message.message_id})
+      if (!res) return
+      
+      return
+      l('Generating file')
+const {spawn} = require('child_process')
+const {Buffer} = require('buffer')
+const {Readable} = require('stream')
+
+const ps = spawn("sh", ["-c", "cat | text2wave -o /dev/stdout -eval '(voice_upc_ca_pau_hts)' /dev/stdin | ffmpeg -hide_banner -loglevel panic -f wav -i pipe: -c:a libvorbis -f ogg pipe: | cat"])
+
+let chunks = []
+ps.stdout.on('data', b => chunks.push(b))
+ps.stdout.on('end', async () => {
+	l('Sending file')
+	l('chunks: ' + chunks.length)
+	let buff = Buffer.concat(chunks)
+
+	l('Length: ' + buff.length)
+	
+	await ctx.replyWithAudio({source: buff})
+	l('Done.')
+})
+
+ps.stdin.write("HOLA COM ESTEM")
+ps.stdin.end()
     }
   }
 
