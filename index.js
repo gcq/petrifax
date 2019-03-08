@@ -2,6 +2,9 @@ const Telegraf = require('telegraf')
 const Extra = require('telegraf/extra')
 const Markup = require('telegraf/markup')
 const _ = require('lodash')
+const {spawn} = require('child_process')
+const {Buffer} = require('buffer')
+const {Readable} = require('stream')
 
 const config = require('./config')
 const utils = require('./utils')
@@ -98,6 +101,8 @@ Fes servir /alzheimer per resetejar el bot a aquest grup. No demana confirmació
 
 /automessage estableix cada quants missatges el bot pren la decisió de parlar per si sol.
 
+/allowAudio permet configurar si el bot pot contestar mitjançant notes de veu.
+
 Es pot configurar qui pot executar les comandes. Veure /ajuda_permisos
 `))
 
@@ -108,6 +113,7 @@ Permisos disponibles:
   - parla: executar /parla. Per defecte all.
   - automessage: executar /automessage. Per defecte admin.
   - all: Fer servir /all o @all. Per defecte admin.
+  - allowAudio: executar /allowAudio. Per defecte admin.
 
 Nivells de permisos: off (ningú), all (tothom), admin (només administradors)
 
@@ -152,6 +158,7 @@ bot.command('/permission', async (ctx) => {
   if (!input) return await  ctx.reply(`El format de la comanda és (/ajuda):\n/permission <nom_permís> <valor>`)
 
   var [permission, value] = input.split(' ')
+  value = value.toLowerCase()
 
   permission = 'permission.' + permission
 
@@ -228,6 +235,38 @@ bot.command('/automessage', async (ctx) => {
 
     await ctx.reply(`Configurat per 1 missatge cada ${n}`)
     
+  } else {
+    await ctx.reply(`No tens permisos per executar aquesta opció`)
+  }
+})
+
+bot.command('/allowAudio', async (ctx) => {
+  l('/allowAudio')
+
+  if (!await utils.isChatAuthorised(ctx)) return await ctx.reply('No autoritzat.')
+
+  var allowed = await utils.checkPermission(ctx, 'allowAudio', 'admin')
+  if (allowed) {
+    let value = ctx.update.message.text
+      .replace('/allowAudio', '')
+      .replace(`@${bot.options.username}`, '')
+      .trim()
+      .toLowerCase()
+
+    if (!value) return await ctx.reply('El format de la comanda és (/ajuda):\n/allowAudio sí|no')
+
+    const off = ['off', 'disabled', '0', 'no']
+    const on = ['on', 'enabled', '1', 'yes', 'si', 'sí']
+
+    if (off.includes(value)) value = false
+    if (on.includes(value)) value = true
+
+    await data.set_pref(ctx.message.chat.id, 'allowAudio', value)
+
+    l(`allowAudio set to ${value}`)
+
+    await ctx.reply(`Configurat per${value ? " " : " NO "}permetre respostes d'àudio`)
+
   } else {
     await ctx.reply(`No tens permisos per executar aquesta opció`)
   }
@@ -390,10 +429,7 @@ bot.on('message', async (ctx) =>  {
       l('mentioned')
       await utils.resetCount(ctx)
 
-      var res = await data.get_sentence(ctx.message.chat.id)
-      l(`mentioned: ${res}`)
-      if (!res) return
-      await ctx.reply(res, {reply_to_message_id: ctx.message.message_id})
+      await utils.respond(ctx, ctx.message.message_id)
     }
   }
 
@@ -401,43 +437,13 @@ bot.on('message', async (ctx) =>  {
     l('replied to')
     await utils.resetCount(ctx)
 
-    var res = await data.get_sentence(ctx.message.chat.id)
-    l(`reply: ${res}`)
-    await ctx.reply(res, {reply_to_message_id: ctx.message.message_id})
+    await utils.respond(ctx, ctx.message.message_id)
   }
 
   if (await data.get_pref(ctx.message.chat.id, 'count') >= (await data.get_pref(ctx.message.chat.id, 'automessage') || +Infinity)) {
     l('automessage due')
     await utils.resetCount(ctx)
 
-    var res = await data.get_sentence(ctx.message.chat.id)
-    l(`automessage: ${res}`)
-
-    if (Math.random() > 0.5) {
-      const {spawn} = require('child_process')
-      const {Buffer} = require('buffer')
-      const {Readable} = require('stream')
-      
-      const ps = spawn("sh", ["-c", "cat | iconv -f utf8 -t ISO-8859-1 | text2wave -o /dev/stdout -eval '(voice_upc_ca_pau_hts)' /dev/stdin | ffmpeg -hide_banner -loglevel panic -f wav -i pipe: -c:a libvorbis -f ogg pipe: | cat"])
-      
-      let chunks = []
-      ps.stdout.on('data', b => chunks.push(b))
-      ps.stdout.on('end', async () => {
-        console.log('Sending file')
-        console.log('chunks: ' + chunks.length)
-        let buff = Buffer.concat(chunks)
-      
-        console.log('Length: ' + buff.length)
-        
-        let audioResponse = await ctx.replyWithAudio({source: buff})
-        await ctx.reply(res, {reply_to_message_id: audioResponse.message_id})
-        console.log('Done.')
-      })
-      
-      ps.stdin.write(res)
-      ps.stdin.end()
-    } else {
-      await ctx.reply(res)
-    }
+    await utils.respond(ctx)
   }
 })

@@ -108,5 +108,48 @@ module.exports = {
     
     if (value === 'off') return false
     if (value === 'on') return true
+  },
+
+  respond: async function respond(ctx, reply_to) {
+    l('respond()')
+    const res = await data.get_sentence(ctx.message.chat.id)
+    const allowAudio = await data.get_pref(ctx.message.chat.id, "allowAudioResponse")
+
+    l(`response: ${res}, allowAudio: ${allowAudio}`)
+
+    if (allowAudio && (Math.random() > 0.5)) {
+      l('responding with audio')
+      l('Generating file')
+      const ps = spawn("sh", ["-c", "cat | iconv -f utf8 -t ISO-8859-1 | text2wave -o /dev/stdout -eval '(voice_upc_ca_pau_hts)' /dev/stdin | ffmpeg -hide_banner -loglevel panic -f wav -i pipe: -c:a libvorbis -f ogg pipe: | cat"])
+
+      let chunks = []
+      ps.stdout.on('data', b => chunks.push(b))
+      ps.stdout.on('end', async () => {
+        l('Sending file')
+        l('chunks: ' + chunks.length)
+        let buff = Buffer.concat(chunks)
+
+        l('Length: ' + buff.length)
+
+        let audioResponse
+        if (reply_to) {
+          audioResponse = await ctx.replyWithAudio({source: buff, reply_to_message_id: reply_to})
+        } else {
+          audioResponse = await ctx.replyWithAudio({source: buff})
+        }
+
+        l('Done sending file')
+      })
+
+      ps.stdin.write(res)
+      ps.stdin.end()
+    } else {
+      l('responding with text')
+      if (reply_to) {
+        await ctx.reply(res, {reply_to_message_id: reply_to})
+      } else {
+        await ctx.reply(res)
+      }
+    }
   }
 }
