@@ -392,32 +392,8 @@ bot.on('message', async (ctx) =>  {
 
       var res = await data.get_sentence(ctx.message.chat.id)
       l(`mentioned: ${res}`)
-      await ctx.reply(res, {reply_to_message_id: ctx.message.message_id})
       if (!res) return
-      
-      return
-      l('Generating file')
-const {spawn} = require('child_process')
-const {Buffer} = require('buffer')
-const {Readable} = require('stream')
-
-const ps = spawn("sh", ["-c", "cat | text2wave -o /dev/stdout -eval '(voice_upc_ca_pau_hts)' /dev/stdin | ffmpeg -hide_banner -loglevel panic -f wav -i pipe: -c:a libvorbis -f ogg pipe: | cat"])
-
-let chunks = []
-ps.stdout.on('data', b => chunks.push(b))
-ps.stdout.on('end', async () => {
-	l('Sending file')
-	l('chunks: ' + chunks.length)
-	let buff = Buffer.concat(chunks)
-
-	l('Length: ' + buff.length)
-	
-	await ctx.replyWithAudio({source: buff})
-	l('Done.')
-})
-
-ps.stdin.write("HOLA COM ESTEM")
-ps.stdin.end()
+      await ctx.reply(res, {reply_to_message_id: ctx.message.message_id})
     }
   }
 
@@ -436,6 +412,32 @@ ps.stdin.end()
 
     var res = await data.get_sentence(ctx.message.chat.id)
     l(`automessage: ${res}`)
-    await ctx.reply(res)
+
+    if (Math.random() > 0.5) {
+      const {spawn} = require('child_process')
+      const {Buffer} = require('buffer')
+      const {Readable} = require('stream')
+      
+      const ps = spawn("sh", ["-c", "cat | iconv -f utf8 -t ISO-8859-1 | text2wave -o /dev/stdout -eval '(voice_upc_ca_pau_hts)' /dev/stdin | ffmpeg -hide_banner -loglevel panic -f wav -i pipe: -c:a libvorbis -f ogg pipe: | cat"])
+      
+      let chunks = []
+      ps.stdout.on('data', b => chunks.push(b))
+      ps.stdout.on('end', async () => {
+        console.log('Sending file')
+        console.log('chunks: ' + chunks.length)
+        let buff = Buffer.concat(chunks)
+      
+        console.log('Length: ' + buff.length)
+        
+        let audioResponse = await ctx.replyWithAudio({source: buff})
+        await ctx.reply(res, {reply_to_message_id: audioResponse.message_id})
+        console.log('Done.')
+      })
+      
+      ps.stdin.write(res)
+      ps.stdin.end()
+    } else {
+      await ctx.reply(res)
+    }
   }
 })
