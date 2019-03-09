@@ -113,6 +113,46 @@ module.exports = {
     if (value === 'on') return true
   },
 
+  respondText: async function respondText(ctx, res, reply_to) {
+    l('responding with text')
+    if (reply_to) {
+      await ctx.reply(res, {reply_to_message_id: reply_to})
+    } else {
+      await ctx.reply(res)
+    }
+  },
+
+  respondVoice: async function respondVoice(ctx, res, reply_to) {
+    l('responding with audio')
+    l('Generating file')
+    //const ps = spawn("sh", ["-c", "cat | iconv -f utf8 -t ISO-8859-1 | text2wave -o /dev/stdout -eval '(voice_upc_ca_pau_hts)' /dev/stdin | ffmpeg -hide_banner -loglevel panic -f wav -i pipe: -c:a libvorbis -f ogg pipe: | cat"])
+    const ps = spawn("sh", ["-c", "cat | iconv -f utf8 -t ISO-8859-1 | text2wave -o /dev/stdout -eval '(voice_upc_ca_pau_hts)' /dev/stdin | ffmpeg -hide_banner -loglevel panic -f wav -i pipe: -c:a libmp3lame -f mp3 pipe: | cat"])
+
+    let chunks = []
+    ps.stdout.on('data', b => chunks.push(b))
+    ps.stdout.on('end', async () => {
+      l('Sending file')
+      l('chunks: ' + chunks.length)
+      let buff = Buffer.concat(chunks)
+
+      l('Length: ' + buff.length)
+
+      let audioResponse
+      if (reply_to) {
+        audioResponse = await ctx.replyWithVoice({source: buff, reply_to_message_id: reply_to})
+      } else {
+        audioResponse = await ctx.replyWithVoice({source: buff})
+      }
+
+      await ctx.reply(res, {reply_to_message_id: audioResponse.message_id})
+
+      l('Done sending file')
+    })
+
+    ps.stdin.write(res)
+    ps.stdin.end()
+  },
+
   respond: async function respond(ctx, reply_to) {
     l('respond()')
     const res = await data.get_sentence(ctx.message.chat.id)
@@ -121,40 +161,9 @@ module.exports = {
     l(`response: ${res}, allowAudio: ${allowAudio}`)
 
     if (allowAudio && (Math.random() > 0.5)) {
-      l('responding with audio')
-      l('Generating file')
-      const ps = spawn("sh", ["-c", "cat | iconv -f utf8 -t ISO-8859-1 | text2wave -o /dev/stdout -eval '(voice_upc_ca_pau_hts)' /dev/stdin | ffmpeg -hide_banner -loglevel panic -f wav -i pipe: -c:a libvorbis -f ogg pipe: | cat"])
-
-      let chunks = []
-      ps.stdout.on('data', b => chunks.push(b))
-      ps.stdout.on('end', async () => {
-        l('Sending file')
-        l('chunks: ' + chunks.length)
-        let buff = Buffer.concat(chunks)
-
-        l('Length: ' + buff.length)
-
-        let audioResponse
-        if (reply_to) {
-          audioResponse = await ctx.replyWithAudio({source: buff, reply_to_message_id: reply_to})
-        } else {
-          audioResponse = await ctx.replyWithAudio({source: buff})
-        }
-
-        await ctx.reply(res, {reply_to_message_id: audioResponse.message_id})
-
-        l('Done sending file')
-      })
-
-      ps.stdin.write(res)
-      ps.stdin.end()
+      await this.respondVoice(ctx, res, reply_to)
     } else {
-      l('responding with text')
-      if (reply_to) {
-        await ctx.reply(res, {reply_to_message_id: reply_to})
-      } else {
-        await ctx.reply(res)
-      }
+      await this.respondText(ctx, res, reply_to)
     }
   }
 }

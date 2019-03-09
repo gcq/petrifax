@@ -192,6 +192,30 @@ bot.command('/parla', async (ctx) => {
   await ctx.reply(res)
 })
 
+bot.command('/say', async (ctx) => {
+  l('/say')
+
+  if (!await utils.isChatAuthorised(ctx)) return await ctx.reply('No autoritzat.')
+
+  var allowed = await utils.checkPermission(ctx, 'say', 'on')
+
+  if (!allowed) return await ctx.reply(`No tens permisos per executar aquesta opció`)
+
+  await utils.resetCount(ctx)
+  
+  var input = ctx.update.message.text
+    .replace('/say', '')
+    .replace(`@${bot.options.username}`, '')
+    .trim()
+
+  if (!input) input = await data.get_sentence(ctx.message.chat.id)
+  if (!input) input = `Encara no he après res d'aquest grup!`
+
+  l(`response: ${input}`)
+
+  await utils.respondVoice(ctx, input)
+})
+
 bot.command('/alzheimer', async (ctx) => {
   l('/alzheimer ' + ctx.message.chat.id)
 
