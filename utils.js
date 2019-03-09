@@ -2,6 +2,9 @@ const l = require('debug')('bot:utils')
 
 const _ = require('lodash')
 const Extra = require('telegraf/extra')
+const {spawn} = require('child_process')
+const {Buffer} = require('buffer')
+const {Readable} = require('stream')
 
 const data = require('./data.db')
 const ownerId = require('./config').ownerId
@@ -113,7 +116,7 @@ module.exports = {
   respond: async function respond(ctx, reply_to) {
     l('respond()')
     const res = await data.get_sentence(ctx.message.chat.id)
-    const allowAudio = await data.get_pref(ctx.message.chat.id, "allowAudioResponse")
+    const allowAudio = await data.get_pref(ctx.message.chat.id, "allowAudio")
 
     l(`response: ${res}, allowAudio: ${allowAudio}`)
 
@@ -137,6 +140,8 @@ module.exports = {
         } else {
           audioResponse = await ctx.replyWithAudio({source: buff})
         }
+
+        await ctx.reply(res, {reply_to_message_id: audioResponse.message_id})
 
         l('Done sending file')
       })
